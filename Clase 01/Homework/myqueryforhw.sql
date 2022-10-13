@@ -1,6 +1,6 @@
-DROP DATABASE henry_m3;
-CREATE DATABASE IF NOT EXISTS henry_m3;
-USE henry_m3;
+DROP DATABASE henry_m3_hw;
+CREATE DATABASE IF NOT EXISTS henry_m3_hw;
+USE henry_m3_hw;
 
 /* Función Capitaliza */
 -- cuando el registro binario está habilitado, esta variable estará habilitada. Controla si se puede confiar en el creador de la función almacenada y no creará una función almacenada que cause eventos inseguros al escribir en el registro binario. Si se establece en 0 (predeterminado), los usuarios no deben crear ni modificar funciones almacenadas a menos que tengan permisos SUPER además de los privilegios CREATE ROUTINE o ALTER ROUTINE. Establecer a 0 también fuerza el uso de características DETERMINISTAS o READS SQL DATA o NO características SQL para declarar límites de funciones. Si la variable se establece en 1, MySQL no aplicará estas restricciones en la creación de funciones almacenadas. Esta variable también se aplica a la creación de disparadores. Consulte la Sección 23.7 "Registro binario de programas almacenados".
@@ -37,7 +37,7 @@ BEGIN
   END WHILE;  
   RETURN s;  
 END$$
-DELIMITER ;
+DELIMITER;
 
 DROP PROCEDURE IF EXISTS `Llenar_dimension_calendario`;
 DELIMITER $$
@@ -194,7 +194,11 @@ CREATE TABLE IF NOT EXISTS producto (
 	Precio2						VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- Producto cargado con pymsql
+LOAD DATA INFILE 'C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\Productos.csv' 
+INTO TABLE `producto` 
+FIELDS TERMINATED BY ',' ENCLOSED BY '\"' ESCAPED BY '\"' 
+LINES TERMINATED BY '\n' IGNORE 1 LINES;
+
 SELECT *
 FROM producto;
 
@@ -208,6 +212,10 @@ CREATE TABLE IF NOT EXISTS empleado (
 	Cargo						VARCHAR(50),
 	Salario2					VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
+LOAD DATA INFILE 'C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\Empleados.csv' 
+INTO TABLE `empleado` 
+FIELDS TERMINATED BY '|' ENCLOSED BY '\"' ESCAPED BY '\"' 
+LINES TERMINATED BY '\n' IGNORE 1 LINES;
 
 SELECT COUNT(*)
 FROM empleado;
@@ -231,7 +239,6 @@ SELECT *
 FROM sucursal;
 
 /*Se genera la dimension calendario*/
-USE henry_m3;
 DROP TABLE IF EXISTS `calendario`;
 CREATE TABLE calendario (
         id                      INTEGER PRIMARY KEY,  -- year*10000+month*100+day
@@ -248,3 +255,8 @@ CREATE TABLE calendario (
 CALL Llenar_dimension_calendario('2015-01-01','2020-12-31');
 SELECT * FROM calendario;
 SELECT UC_Words('alvaro nadie');
+
+SHOW TABLES FROM henry_m3_hw;
+
+
+/*Clase 02*/
