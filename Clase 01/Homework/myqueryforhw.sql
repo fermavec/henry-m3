@@ -966,3 +966,59 @@ INSERT INTO dim_producto
 SELECT IdProducto, Producto, IdTipoProducto
 FROM producto
 WHERE IdProducto IN (SELECT distinct IdProducto FROM fact_venta);
+
+/*Clase 05 HW*/
+-- 1 Crear una tabla que permita realizar el seguimiento de los usuarios que ingresan nuevos registros en fact_venta.
+DROP TABLE IF EXISTS fact_venta_auditoria;
+CREATE TABLE fact_venta_auditoria (
+	Fecha				DATE, 
+    Fecha_Entrega 		DATE,
+    IdSucursal				INTEGER, 
+    IdCliente			INTEGER,
+    IdEmpleado			INTEGER,
+    IdProducto			INTEGER, 
+    Usuario				VARCHAR(50),
+    Fecha_Actualizacion	DATETIME
+);
+
+SELECT * FROM fact_venta_auditoria;
+
+-- 2. Crear una acción que permita la carga de datos en la tabla anterior.alter
+DROP TRIGGER IF EXISTS fact_venta_audit;
+CREATE TRIGGER fact_venta_audit 
+AFTER INSERT ON aux_venta
+FOR EACH ROW
+INSERT INTO fact_venta_auditoria (Fecha, Fecha_Entrega, IdSucursal, IdCliente, IdEmpleado, IdProducto, Usuario, Fecha_Actualizacion)
+VALUES (NEW.Fecha, NEW.Fecha_Entrega, NEW.IdSucursal, NEW.IdCliente, NEW.IdEmpleado, NEW.IdProducto, CURRENT_USER, NOW());
+
+INSERT INTO aux_venta
+VALUES (18255, '2022-10-17', '2022-10-17', 1185, 13, 1274, 42779, 955.00, 1, 0);
+INSERT INTO aux_venta
+VALUES (18255, '2001-10-17', '2022-10-17', 1185, 13, 1274, 42779, 955.00, 1, 0);
+
+SELECT * FROM fact_venta_auditoria;
+
+-- 3
+DROP TABLE IF EXISTS count_venta_auditoria;
+CREATE TABLE count_venta_auditoria (
+	IdConteo INTEGER NOT NULL AUTO_INCREMENT,
+    Conteo INTEGER,
+    Usuario VARCHAR(50),
+    Fecha_Modificacion DATETIME,
+    PRIMARY KEY(IdConteo)
+);
+
+-- 4
+DROP TRIGGER IF EXISTS count_venta_audit;
+CREATE TRIGGER count_venta_audit
+AFTER INSERT ON aux_venta
+FOR EACH ROW
+INSERT INTO count_venta_auditoria(conteo)
+VALUES((SELECT COUNT(*) FROM aux_venta));
+
+SELECT * FROM count_venta_auditoria;
+
+INSERT INTO aux_venta
+VALUES (18255, '2022-10-17', '2022-10-17', 1185, 13, 1274, 42779, 955.00, 1, 0);
+
+SELECT * FROM count_venta_auditoria;
