@@ -1086,41 +1086,156 @@ WHERE IdVenta = 2;
 /*Clase 06*/
 SET GLOBAL log_bin_trust_function_creators = 1;
 
--- 1.
-DROP FUNCTION IF EXISTS obtenerProductos;
+use henry_m3_hw;
+-- #1
+DROP PROCEDURE listaProductos;
 DELIMITER $$
-CREATE FUNCTION obtenerProductos(fechaVenta DATE) RETURNS INT
+CREATE PROCEDURE listaProductos (fechaVenta DATE)
 BEGIN
-	DECLARE TotalProductos INT;
-	SELECT SUM(Cantidad) 
-    INTO TotalProductos
-    FROM venta 
-    WHERE Fecha = fechaVenta;
-    RETURN TotalProductos;
-END$$
+	SELECT DISTINCT p.Producto
+    FROM venta v
+    JOIN producto p ON(p.IdProducto = v.IdProducto AND v.Fecha = fechaVenta);
+END $$
 DELIMITER ;
+CALL listaProductos('2018-01-26');
 
-SET @conteoProductos =  obtenerProductos('2015-01-01');
-SELECT @conteoProductos as cantidad_productos;
+-- #2
+DROP FUNCTION margenBruto;
+DELIMITER $$
+CREATE FUNCTION margenBruto(precio DECIMAL(15,2), margen DECIMAL(8,2)) RETURNS DECIMAL (15,2)
+BEGIN
+	DECLARE margenBruto DECIMAL(15,2);
+    SET margenBruto = precio * margen;
+    RETURN margenBruto;
+END $$
+DELIMITER ;
+SELECT margenBruto(100, 1.2);
+
+SELECT c.Fecha, pr.nombre as Proveedor, p.Producto, c.Precio as Precio_Compra, margenBruto(c.Precio, 1.2) as precio_con_margen
+FROM compra c
+JOIN producto p ON(p.IdProducto = c.IdProducto)
+JOIN proveedor pr ON(pr.IdProveedor = c.IdProveedor);
+
+-- #3
+SELECT p.IdProducto, p.Producto, p.Precio, margenBruto(p.Precio, 1.2) as precio_con_margen
+FROM producto p
+JOIN tipo_producto tp ON(p.IdTipoProducto = tp.IdTipoProducto AND TipoProducto = 'Impresión');
+
+-- #4
+DROP PROCEDURE listaProductosCategoria;
+DELIMITER $$
+CREATE PROCEDURE listaProductosCategoria (categoria VARCHAR(30))
+BEGIN
+	SELECT v.*, p.Producto
+    FROM venta v
+    JOIN producto p ON(p.IdProducto = v.IdProducto)
+    JOIN tipo_producto tp ON(tp.IdTipoProducto = p.IdTipoProducto AND TipoProducto collate utf8mb4_spanish_ci = categoria);
+END $$
+DELIMITER ;
+CALL listaProductosCategoria('Limpieza');
+
+-- #5
+DROP PROCEDURE cargarFact_venta;
+DELIMITER $$
+CREATE PROCEDURE cargarFact_venta()
+BEGIN
+	INSERT INTO fact_venta
+    SELECT IdVenta, Fecha, Fecha_Entrega, IdCanal, IdCliente, IdEmpleado, IdProducto, Precio, Cantidad
+    FROM venta
+    WHERE Outlier = 1
+    LIMIT 10;
+END $$
+DELIMITER ;
+CALL cargarFact_venta();
+
+-- #6
+DROP PROCEDURE ventasGrupoEtario;
+DELIMITER $$
+CREATE PROCEDURE ventasGrupoEtario(rango_etario VARCHAR(30))
+BEGIN
+	SELECT c.Rango_Etario, SUM(v.Precio * v.Cantidad) AS total_ventas
+    FROM venta v
+    JOIN cliente c ON(c.IdCliente = v.IdCliente AND c.Rango_Etario collate utf8mb4_spanish_ci LIKE concat('%', rango_etario, '%'))
+    GROUP BY c.Rango_Etario;
+END $$
+DELIMITER ;
+SELECT DISTINCT Rango_Etario
+FROM cliente
+WHERE Rango_Etario LIKE '%51 a 60%';
+CALL ventasGrupoEtario('51%60');
+
+-- #7
+SET @grupo_etario = '4_De 51 a 60 años' collate utf8mb4_spanish_ci;
+SELECT *
+FROM dim_cliente
+WHERE Rango_Etario  = @grupo_etario;
+
+/*Clase 07*/
+-- 1
+SELECT cliente.Nombre_y_Apellido AS nombre, 
+venta.IdProducto AS Producto, 
+venta.Precio AS Precio
+FROM cliente
+INNER JOIN venta
+ON (venta.IdCliente = cliente.IdCliente);
+
+-- 2
+SELECT cliente.Nombre_y_Apellido AS nombre, 
+SUM(venta.Cantidad) AS ProductosComprados,
+venta.IdProducto AS Producto
+FROM cliente
+LEFT JOIN venta
+ON (venta.IdCliente = cliente.IdCliente)
+GROUP BY venta.IdProducto
+ORDER BY ProductosComprados ASC;
+
+-- 3
+SELECT cliente.Nombre_y_Apellido AS nombre, 
+SUM(venta.Cantidad) AS ProductosComprados,
+YEAR(venta.Fecha) AS Anio
+FROM cliente
+LEFT JOIN venta
+ON (venta.IdCliente = cliente.IdCliente)
+GROUP BY YEAR(venta.Fecha)
+ORDER BY ProductosComprados ASC;
+
+-- 4
+SELECT cliente.Nombre_y_Apellido AS nombre, 
+SUM(venta.Cantidad) AS ProductosComprados,
+venta.IdProducto AS Producto, 
+ROUND(AVG(venta.Precio), 2) AS PrecioPromedio
+FROM cliente
+INNER JOIN venta
+ON (venta.IdCliente = cliente.IdCliente)
+GROUP BY venta.IdProducto
+ORDER BY ProductosComprados DESC;
 
 -- 5
-DROP PROCEDURE getTotalVentas;
-DELIMITER $$
-CREATE PROCEDURE getTotalVentas( IN rango VARCHAR(25))
-BEGIN
-	DECLARE total_ventas INT DEFAULT 0;
-    DECLARE rango VARCHAR(25);
-    SELECT COUNT(*)
-    INTO total_ventas
-    FROM venta
-    JOIN cliente
-    ON venta.IdCliente = cliente.IdCliente
-    WHERE cliente.Rango_Etario LIKE rango;
-    SELECT total_ventas;
-END$$
-DELIMITER ;
+SELECT SUM((venta.Precio * venta.Cantidad)) AS VentasTotales, 
+SUM(venta.Cantidad) AS ProductosVendidos, 
+localidad.Localidad AS Localidad
+FROM venta
+INNER JOIN sucursal
+ON (sucursal.IdSucursal = venta.IdSucursal)
+INNER JOIN localidad
+ON (localidad.IdLocalidad = sucursal.IdLocalidad)
+GROUP BY Localidad
+ORDER BY VentasTotales DESC;
 
-CALL getTotalVentas('4_De51a60años');
+-- 6
+SELECT SUM((venta.Precio * venta.Cantidad)) AS VentasTotales, 
+SUM(venta.Cantidad) AS ProductosVendidos, 
+provincia.Provincia AS Provincia
+FROM venta
+INNER JOIN sucursal
+ON (sucursal.IdSucursal = venta.IdSucursal)
+INNER JOIN localidad
+ON (localidad.IdLocalidad = sucursal.IdLocalidad)
+INNER JOIN provincia
+ON (provincia.IdProvincia = localidad.IdProvincia)
+GROUP BY Provincia
+ORDER BY VentasTotales DESC;
+
 
 
 
