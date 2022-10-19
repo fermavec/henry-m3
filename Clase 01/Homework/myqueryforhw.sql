@@ -1082,3 +1082,52 @@ WHERE IdVenta = 2;
 DELETE
 FROM fact_venta
 WHERE IdVenta = 2;
+
+/*Clase 06*/
+SET GLOBAL log_bin_trust_function_creators = 1;
+
+-- 1.
+DROP FUNCTION IF EXISTS obtenerProductos;
+DELIMITER $$
+CREATE FUNCTION obtenerProductos(fechaVenta DATE) RETURNS INT
+BEGIN
+	DECLARE TotalProductos INT;
+	SELECT SUM(Cantidad) 
+    INTO TotalProductos
+    FROM venta 
+    WHERE Fecha = fechaVenta;
+    RETURN TotalProductos;
+END$$
+DELIMITER ;
+
+SET @conteoProductos =  obtenerProductos('2015-01-01');
+SELECT @conteoProductos as cantidad_productos;
+
+-- 5
+DROP PROCEDURE getTotalVentas;
+DELIMITER $$
+CREATE PROCEDURE getTotalVentas( IN rango VARCHAR(25))
+BEGIN
+	DECLARE total_ventas INT DEFAULT 0;
+    DECLARE rango VARCHAR(25);
+    SELECT COUNT(*)
+    INTO total_ventas
+    FROM venta
+    JOIN cliente
+    ON venta.IdCliente = cliente.IdCliente
+    WHERE cliente.Rango_Etario LIKE rango;
+    SELECT total_ventas;
+END$$
+DELIMITER ;
+
+CALL getTotalVentas('4_De51a60años');
+
+
+
+
+
+
+
+
+
+
